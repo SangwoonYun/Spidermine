@@ -1,0 +1,12 @@
+diff --color -uNr /usr/include/x86_64-linux-gnu/bits/ptrace-shared.h bits/ptrace-shared.h
+--- /usr/include/x86_64-linux-gnu/bits/ptrace-shared.h	2022-07-07 08:23:23.000000000 +0900
++++ bits/ptrace-shared.h	2023-04-14 18:37:39.509644257 +0900
+@@ -35,6 +35,8 @@
+   PTRACE_O_TRACESECCOMP	= 0x00000080,
+   PTRACE_O_EXITKILL	= 0x00100000,
+   PTRACE_O_SUSPEND_SECCOMP = 0x00200000,
++  /* additional option for spidermine: MMAPTRACE */
++  PTRACE_O_MMAPTRACE	= 0x00400000,
+   PTRACE_O_MASK		= 0x003000ff
+ };
+ 

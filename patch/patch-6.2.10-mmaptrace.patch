@@ -1,0 +1,63 @@
+diff --color -uNr linux-6.2.10/include/uapi/linux/ptrace.h Spidermine-kernel/include/uapi/linux/ptrace.h
+--- linux-6.2.10/include/uapi/linux/ptrace.h	2023-04-06 19:12:48.000000000 +0900
++++ Spidermine-kernel/include/uapi/linux/ptrace.h	2023-04-14 18:17:06.287112622 +0900
+@@ -147,8 +147,11 @@
+ #define PTRACE_O_EXITKILL		(1 << 20)
+ #define PTRACE_O_SUSPEND_SECCOMP	(1 << 21)
+ 
++/* additional option for spidermine: MMAPTRACE */
++#define PTRACE_O_MMAPTRACE		(1 << 22)
++
+ #define PTRACE_O_MASK		(\
+-	0x000000ff | PTRACE_O_EXITKILL | PTRACE_O_SUSPEND_SECCOMP)
++	0x000000ff | PTRACE_O_EXITKILL | PTRACE_O_SUSPEND_SECCOMP | PTRACE_O_MMAPTRACE)
+ 
+ #include <asm/ptrace.h>
+ 
+diff --color -uNr linux-6.2.10/kernel/entry/common.c Spidermine-kernel/kernel/entry/common.c
+--- linux-6.2.10/kernel/entry/common.c	2023-04-06 19:12:48.000000000 +0900
++++ Spidermine-kernel/kernel/entry/common.c	2023-04-14 18:16:54.151190610 +0900
+@@ -91,6 +91,9 @@
+ 	unsigned long work = READ_ONCE(current_thread_info()->syscall_work);
+ 
+ 	if (work & SYSCALL_WORK_ENTER)
++		/* additional option for spidermine: handling trace */
++		if (current->ptrace & PT_MMAPTRACE && syscall == __NR_mmap)
++			return syscall;
+ 		syscall = syscall_trace_enter(regs, syscall, work);
+ 
+ 	return syscall;
+@@ -245,11 +248,19 @@
+ 	audit_syscall_exit(regs);
+ 
+ 	if (work & SYSCALL_WORK_SYSCALL_TRACEPOINT)
+-		trace_sys_exit(regs, syscall_get_return_value(current, regs));
++		/* additional option for spidermine: handling mmap trace */
++		if (current->ptrace == PT_MMAPTRACE && regs->orig_ax == __NR_mmap)
++			trace_sys_exit(regs, syscall_get_return_value(current, regs));
++		else
++			trace_sys_exit(regs, syscall_get_return_value(current, regs));
+ 
+ 	step = report_single_step(work);
+ 	if (step || work & SYSCALL_WORK_SYSCALL_TRACE)
+-		ptrace_report_syscall_exit(regs, step);
++		/* additional option for spidermine: handling mmap trace */
++		if (current->ptrace == PT_MMAPTRACE && regs->orig_ax == __NR_mmap)
++			ptrace_report_syscall_exit(regs, step);
++		else 
++			ptrace_report_syscall_exit(regs, step);
+ }
+ 
+ /*
+diff --color -uNr linux-6.2.10/Makefile Spidermine-kernel/Makefile
+--- linux-6.2.10/Makefile	2023-04-06 19:12:48.000000000 +0900
++++ Spidermine-kernel/Makefile	2023-04-14 18:16:50.639213629 +0900
+@@ -2,7 +2,7 @@
+ VERSION = 6
+ PATCHLEVEL = 2
+ SUBLEVEL = 10
+-EXTRAVERSION =
++EXTRAVERSION = -Spidermine
+ NAME = Hurr durr I'ma ninja sloth
+ 
+ # *DOCUMENTATION*
